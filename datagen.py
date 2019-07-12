@@ -85,10 +85,11 @@ class ListDataset(data.Dataset):
         if img.mode != 'RGB':
             img = img.convert('RGB')
 
-        boxes = self.boxes[idx].clone()
+        boxes = self.boxes[idx]
         labels = self.labels[idx]
         size = self.input_size
-
+        if boxes.shape[0] == 0:
+            print("aaaaaaaaaaaaaaaaaaaa")
         # Data augmentation.
         if self.train:
             img, boxes = random_flip(img, boxes)

@@ -1,5 +1,6 @@
 '''Make image/labels/boxes from an annotation file.
 
+This program will auto kill the image data which has no annotation.
 The list file is like:
 
     img.jpg xmin ymin xmax ymax label xmin ymin xmax ymax label ...
@@ -18,6 +19,7 @@ from torch.autograd import Variable
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
+import argparse
 
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
@@ -63,10 +65,12 @@ def load_data(root, ann_root,dataType):
     for i, name in enumerate(fnames):
         if (i+1)%10000 == 0:
             print("\r%d/%d"%(i+1,len(fnames)),end="")
-        file.write("%s "%(name))
         img_num = int(name.replace(".jpg",""))
         annIds = coco.getAnnIds(imgIds=[img_num], iscrowd=None)
         anns = coco.loadAnns(annIds)
+        if len(anns) == 0:
+            continue
+        file.write("%s "%(name))
         for i, ann in enumerate(anns):
             coco_label = int(ann['category_id'])
             label = class_map(coco_label)
@@ -82,7 +86,11 @@ def load_data(root, ann_root,dataType):
 def test(ku = False):
     import torchvision
 
-    dataType = 'val2017'
+    parser = argparse.ArgumentParser(description='PyTorch data Preprocessing')
+    parser.add_argument('--dataType', default='train2017', type=str, help='dataType: train2017,val2017')
+    args = parser.parse_args()
+
+    dataType = args.dataType
     root = "../COCO_dataset/images/%s"%(dataType)
     ann_root = "../COCO_dataset/annotations/instances_%s.json"%(dataType)
     load_data(root, ann_root,dataType)

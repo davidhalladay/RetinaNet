@@ -35,18 +35,23 @@ transform = transforms.Compose([
     transforms.Normalize((0.485,0.456,0.406), (0.229,0.224,0.225))
 ])
 
+dataType = 'train2017'
+root_path = "../COCO_dataset/images/%s"%(dataType)
+list_root_path = "./data/%s.txt"%(dataType)
+trainset = ListDataset(root=root_path,list_file=list_root_path, train=True, transform=transform, input_size=360)
 
-trainset = ListDataset(root='../COCO_dataset/images/train2017',
-                       list_file='./data/coco17_train.txt', train=True, transform=transform, input_size=128)
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=128, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
 
-testset = ListDataset(root='../COCO_dataset/images/val2017',
-                      list_file='./data/coco17_val.txt', train=False, transform=transform, input_size=128)
-testloader = torch.utils.data.DataLoader(testset, batch_size=200, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
+dataType = 'val2017'
+root_path = "../COCO_dataset/images/%s"%(dataType)
+list_root_path = "./data/%s.txt"%(dataType)
+testset = ListDataset(root=root_path,list_file=list_root_path, train=True, transform=transform, input_size=360)
+
+testloader = torch.utils.data.DataLoader(testset, batch_size=32, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
 
 # Model
 net = RetinaNet()
-print("loading ./model/net.pth....")
+print("loading ResNet pretrain from ./model/net.pth....")
 net.load_state_dict(torch.load('./model/net.pth'))
 if args.resume:
     print('==> Resuming from checkpoint..')
@@ -63,10 +68,9 @@ optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=1
 
 # Training
 def train(epoch):
-    if epoch in [20,40,60,80,100,120,150,180]:
+    if epoch in [30,60,80,110,140,170,190]:
         optimizer.param_groups[0]['lr'] /= 1.7
 
-    print('Epoch: %d' % epoch)
     net.train()
     #net.module.freeze_bn()
     train_loss = 0
@@ -83,7 +87,7 @@ def train(epoch):
         optimizer.step()
 
         train_loss += loss.item()
-        print('Batch : %d / %d ,train_loss: %.3f | avg_loss: %.3f | LR : %.6f' % (batch_idx+1,len(trainloader),loss.item(), train_loss/(batch_idx+1),optimizer.param_groups[0]['lr']))
+        print('E: %d | Batch : %d / %d ,train_loss: %.3f | avg_loss: %.3f | LR : %.6f' % (epoch,batch_idx+1,len(trainloader),loss.item(), train_loss/(batch_idx+1),optimizer.param_groups[0]['lr']))
 
 # Test
 def test(epoch):
@@ -98,7 +102,8 @@ def test(epoch):
         loc_preds, cls_preds = net(inputs)
         loss = criterion(loc_preds, loc_targets, cls_preds, cls_targets)
         test_loss += loss.item()
-        print('test_loss: %.3f | avg_loss: %.3f' % (loss.item(), test_loss/(batch_idx+1)))
+        if batch_idx % 20 == 0:
+            print('test_loss: %.3f | avg_loss: %.3f' % (loss.item(), test_loss/(batch_idx+1)))
 
     # Save checkpoint
     global best_loss

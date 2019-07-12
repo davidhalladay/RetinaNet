@@ -1,8 +1,11 @@
-'''Load image/labels/boxes from an annotation file.
+'''Make image/labels/boxes from an annotation file.
 
 The list file is like:
 
     img.jpg xmin ymin xmax ymax label xmin ymin xmax ymax label ...
+
+Author : Wan-Cyuan Fan
+
 '''
 from __future__ import print_function
 
@@ -76,13 +79,13 @@ def load_data(root, ann_root,dataType):
         file.write("\n")
     return True
 
-def test():
+def test(ku = False):
     import torchvision
 
-    dataType = 'train2017'
+    dataType = 'val2017'
     root = "../COCO_dataset/images/%s"%(dataType)
     ann_root = "../COCO_dataset/annotations/instances_%s.json"%(dataType)
-    #load_data(root, ann_root,dataType)
+    load_data(root, ann_root,dataType)
 
     fnames = []
     boxes = []
@@ -90,7 +93,9 @@ def test():
 
     with open("./data/%s.txt"%(dataType)) as f:
         lines = f.readlines()
-
+    if ku == True:
+        with open("./data/coco17_train.txt") as f:
+            lines = f.readlines()
     for line in lines:
         splited = line.strip().split()
         fnames.append(splited[0])
@@ -110,7 +115,7 @@ def test():
     print("Total number of BBox : ",len(boxes))
     print("Total number of labels : ",len(labels))
 
-    test_idx = 1000
+    test_idx = 2200
     test_fname = fnames[test_idx]
     test_box = boxes[test_idx]
     test_label = labels[test_idx]
@@ -118,10 +123,11 @@ def test():
     img = Image.open(os.path.join(root,test_fname))
 
     draw = ImageDraw.Draw(img)
+
     for i,(box,label) in enumerate(zip(test_box,test_label)):
-        draw.rectangle(list(box), outline=color_map(int(label)),width = 2)
-        draw.rectangle(list([box[0],box[1]-10,box[0]+6*len(my_cate[int(label)])+4,box[1]]), outline=color_map(int(label)),width = 2,fill='white')
-        draw.text((box[0]+3, box[1]-11), my_cate[int(label)],fill = (0, 0, 0, 100),width = 2)
+        draw.rectangle(list(box), outline=color_map(int(label)),width = 4)
+        draw.rectangle(list([box[0],box[1]-10,box[0]+6*len(my_cate[int(label)])+4,box[1]]), outline=color_map(int(label)),width = 4,fill='white')
+        draw.text((box[0]+3, box[1]-11), my_cate[int(label)],fill = (0, 0, 0, 100),width = 4)
     plt.imshow(img)
     plt.savefig("./test.jpg")
 

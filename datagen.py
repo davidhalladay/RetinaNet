@@ -16,7 +16,7 @@ import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 from encoder import DataEncoder
 from transform import resize, random_flip, random_crop, center_crop
@@ -25,29 +25,47 @@ from pycocotools.coco import COCO
 from class_cgf import *
 
 class ListDataset(data.Dataset):
-    def __init__(self, root, ann_root, train, transform, input_size):
+    def __init__(self, root, list_file, train, transform, input_size):
         '''
         Args:
           root: (str) ditectory to images.
+          list_file: (str) path to index file.
           train: (boolean) train or test.
           transform: ([transforms]) image transforms.
           input_size: (int) model input size.
         '''
         self.root = root
-        self.ann_root = ann_root
         self.train = train
         self.transform = transform
         self.input_size = input_size
 
-        self.fnames = os.listdir(self.root)
-        self.fnames.sort()
+        self.fnames = []
         self.boxes = []
         self.labels = []
 
         self.encoder = DataEncoder()
-        self.coco = COCO(self.ann_root)
 
-        self.len = len(self.fnames)
+        with open(list_file) as f:
+            lines = f.readlines()
+            self.num_samples = len(lines)
+
+        for line in lines:
+            splited = line.strip().split()
+            self.fnames.append(splited[0])
+            num_boxes = (len(splited) - 1) // 5
+            box = []
+            label = []
+            for i in range(num_boxes):
+                xmin = splited[1+5*i]
+                ymin = splited[2+5*i]
+                xmax = splited[3+5*i]
+                ymax = splited[4+5*i]
+                c = splited[5+5*i]
+                box.append([float(xmin),float(ymin),float(xmax),float(ymax)])
+                label.append(int(c))
+            self.boxes.append(torch.Tensor(box))
+            self.labels.append(torch.LongTensor(label))
+
         print("<"+"=====Initializaion succeed====="+">")
 
     def __getitem__(self, idx):
@@ -63,23 +81,12 @@ class ListDataset(data.Dataset):
         '''
         # Load image and boxes.
         fname = self.fnames[idx]
-        img_num = int(fname.replace(".jpg",""))
-        img = Image.open(os.path.join(self.root,fname))
+        img = Image.open(os.path.join(self.root, fname))
         if img.mode != 'RGB':
             img = img.convert('RGB')
 
-        annIds = self.coco.getAnnIds(imgIds=[img_num], iscrowd=None)
-        anns = self.coco.loadAnns(annIds)
-        boxes = []
-        labels = []
-        for i, ann in enumerate(anns):
-            coco_label = int(ann['category_id'])
-            label = class_map(coco_label)
-            boxes.append(ann['bbox'])
-            labels.append(label)
-        boxes = torch.FloatTensor(boxes)
-        labels = torch.LongTensor(labels)
-
+        boxes = self.boxes[idx].clone()
+        labels = self.labels[idx]
         size = self.input_size
 
         # Data augmentation.
@@ -124,7 +131,7 @@ class ListDataset(data.Dataset):
         return inputs, torch.stack(loc_targets), torch.stack(cls_targets)
 
     def __len__(self):
-        return self.len
+        return self.num_samples
 
 
 def test():
@@ -134,11 +141,12 @@ def test():
         transforms.ToTensor(),
         transforms.Normalize((0.485,0.456,0.406), (0.229,0.224,0.225))
     ])
+
     dataType = 'train2017'
     root_path = "../COCO_dataset/images/%s"%(dataType)
-    ann_root_path = "../COCO_dataset/annotations/instances_%s.json"%(dataType)
-    dataset = ListDataset(root=root_path,ann_root=ann_root_path, train=True, transform=transform, input_size=64)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1, collate_fn=dataset.collate_fn)
+    list_root_path = "./data/%s.txt"%(dataType)
+    dataset = ListDataset(root=root_path,list_file=list_root_path, train=True, transform=transform, input_size=360)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1, collate_fn=dataset.collate_fn)
 
     for images, loc_targets, cls_targets in dataloader:
         print(images.shape)
@@ -147,13 +155,12 @@ def test():
         grid = torchvision.utils.make_grid(images, 1)
         torchvision.utils.save_image(grid, 'a.jpg')
 
-
         print('Loading image..')
         net = RetinaNet()
         net.eval()
 
         img = Image.open('a.jpg')
-        w = h = 224
+        w = h = 360
         img = img.resize((w,h))
 
         print('Predicting..')
@@ -171,17 +178,23 @@ def test():
 
         with torch.no_grad():
             loc_preds, cls_preds = net(x)
+            print(loc_preds.shape)
             print(cls_preds.shape)
             print('Decoding..')
             encoder = DataEncoder()
-            boxes, labels = encoder.decode(loc_targets.data[0].cpu(), cls_preds.data.cpu().squeeze(), (w,h))
-            print('class : ',cls_targets)
+
+            boxes, labels, _= encoder.decode(loc_targets.data.cpu()[0], cls_preds.data.cpu().squeeze(), (w,h))
+            print("Label : ",labels)
             draw = ImageDraw.Draw(img)
+            # use a truetype font
+            font = ImageFont.truetype("./font/DELIA_regular.ttf", 20)
             for i,(box,label) in enumerate(zip(boxes,labels)):
-                draw.rectangle(list(box), outline='green')
-                draw.text((box[0], box[1]), str(label + 1))
+                draw.rectangle(list(box), outline=color_map(int(label)),width = 5)
+                draw.rectangle(list([box[0],box[1]-17,box[0]+10*len(my_cate[int(label)])+5,box[1]]), outline=color_map(int(label)),width = 3,fill=color_map(int(label)))
+                draw.text((box[0]+3, box[1]-16), my_cate[int(label)],font = font,fill = (0, 0, 0, 100),width = 5)
+
             plt.imshow(img)
-            plt.savefig("./test.png")
+            plt.savefig("./test.jpg")
 
         break
 

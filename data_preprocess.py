@@ -13,6 +13,7 @@ from __future__ import print_function
 import os
 import sys
 import random
+from tqdm import tqdm
 import cv2
 from retinanet import RetinaNet
 from torch.autograd import Variable
@@ -28,6 +29,15 @@ from transform import resize, random_flip, random_crop, center_crop
 
 from pycocotools.coco import COCO
 from class_cgf import *
+import torchvision
+
+parser = argparse.ArgumentParser(description='PyTorch data Preprocessing')
+parser.add_argument('--dataType', default='train2017', type=str, help='dataType: train2017,val2017')
+parser.add_argument('--build_annos','-ba', action='store_true', help='mode for build_annos')
+parser.add_argument('--build_mPA_GT','-bg', action='store_true', help='mode for build_mPA_GT')
+parser.add_argument('--test_image','-t', action='store_true', help='Testing mode ON and save the test image in ./')
+args = parser.parse_args()
+
 
 def change_box_order(boxes, order):
     '''Change box order between (xmin,ymin,xmax,ymax) and (xcenter,ycenter,width,height).
@@ -64,9 +74,7 @@ def build_annos(root, ann_root,dataType):
     # save csv
     file = open("./data/%s.txt"%(dataType),"w")
 
-    for i, name in enumerate(fnames):
-        if (i+1)%10000 == 0:
-            print("\r%d/%d"%(i+1,len(fnames)),end="")
+    for i, name in enumerate(tqdm(fnames)):
         img_num = int(name.replace(".jpg",""))
         annIds = coco.getAnnIds(imgIds=[img_num], iscrowd=None)
         anns = coco.loadAnns(annIds)
@@ -99,9 +107,7 @@ def build_mPA_GT(root, ann_root,dataType):
     coco = COCO(ann_root)
     print("Total number of images : ",len(fnames))
 
-    for i, name in enumerate(fnames):
-        if (i+1)%10000 == 0:
-            print("\r%d/%d"%(i+1,len(fnames)),end="")
+    for i, name in enumerate(tqdm(fnames)):
         img_num = int(name.replace(".jpg",""))
         annIds = coco.getAnnIds(imgIds=[img_num], iscrowd=None)
         anns = coco.loadAnns(annIds)
@@ -120,23 +126,16 @@ def build_mPA_GT(root, ann_root,dataType):
     return True
 
 def test(ku = False):
-    import torchvision
-
-    parser = argparse.ArgumentParser(description='PyTorch data Preprocessing')
-    parser.add_argument('--dataType', default='train2017', type=str, help='dataType: train2017,val2017')
-    parser.add_argument('--mode', default='ba', type=str, help='mode: ba for build_annos, bg for build_mPA_GT, Both')
-    parser.add_argument('--test_image','-t', action='store_true', help='Testing mode ON and save the test image in ./')
-    args = parser.parse_args()
 
     dataType = args.dataType
     root = "../COCO_dataset/images/%s"%(dataType)
     ann_root = "../COCO_dataset/annotations/instances_%s.json"%(dataType)
 
-    if args.mode == 'ba' or args.mode == 'Both' :
+    if args.build_annos:
         if not os.path.exists("./data"):
             os.makedirs("./data")
         build_annos(root, ann_root,dataType)
-    if args.mode == 'bg' or args.mode == 'Both' :
+    if args.build_mPA_GT:
         if not os.path.exists("./mPA"):
             os.makedirs("./mPA")
         if not os.path.exists("./mPA/GT"):

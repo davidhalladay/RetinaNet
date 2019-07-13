@@ -122,6 +122,9 @@ class DataEncoder:
         scores, labels = cls_preds.sigmoid().max(1)          # [#anchors,]
         ids = scores > CLS_THRESH
         ids = ids.nonzero().squeeze()             # [#obj,]
-        keep = box_nms(boxes[ids], scores[ids], threshold=NMS_THRESH)
+        if len(boxes[ids].view(-1,4)) == 0 or len(boxes[ids].view(-1,4)) == 1:
+            return boxes[ids].view(-1,4), labels[ids].view(-1,) ,scores[ids].view(-1,)
 
-        return boxes[ids][keep], labels[ids][keep] ,scores[ids][keep]
+        keep = box_nms(boxes[ids].view(-1,4), scores[ids], threshold=NMS_THRESH)
+
+        return boxes[ids].view(-1,4)[keep], labels[ids][keep] ,scores[ids][keep]

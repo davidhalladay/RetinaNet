@@ -89,7 +89,7 @@ class ListDataset(data.Dataset):
         labels = self.labels[idx]
         size = self.input_size
         if boxes.shape[0] == 0:
-            print("aaaaaaaaaaaaaaaaaaaa")
+            print("ERROR: image data with no annotation!")
         # Data augmentation.
         if self.train:
             img, boxes = random_flip(img, boxes)

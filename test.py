@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import os
 from retinanet import RetinaNet
 from encoder import DataEncoder
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from class_cgf import *
 
 transform = transforms.Compose([
@@ -24,7 +24,7 @@ image_list = ['000000524387.jpg','000000229494.jpg','000000162998.jpg',
             '000000251723.jpg','000000312718.jpg','000000213753.jpg','000000021138.jpg']
 
 parser = argparse.ArgumentParser(description='PyTorch RetinaNet Training')
-parser.add_argument('--ckpt', type=str, default = './checkpoint/ckpt.pth',help='the name of ckpt (default : ./checkpoint/ckpt.pth)')
+parser.add_argument('--ckpt', type=str, default = './checkpoint/ckpt_alt.pth',help='the name of ckpt (default : ./checkpoint/ckpt_alt.pth)')
 parser.add_argument('--image_root', type=str, default = "../COCO_dataset/images/train2017",help='root of image data (default : ../COCO_dataset/images/train2017')
 parser.add_argument('--pred_root', type=str, default = "./prediction",help='root of predict data (default : ./prediction')
 args = parser.parse_args()
@@ -53,7 +53,7 @@ def visualize(net,device,image_root,image_list,pred_root):
         image_path = os.path.join(image_root,image_name)
         # Loading image...
         img = Image.open(image_path)
-        w = h = 224
+        w = h = 360
         img = img.resize((w,h))
 
         x = transform(img)
@@ -68,17 +68,21 @@ def visualize(net,device,image_root,image_list,pred_root):
 
             # Decoding...
             encoder = DataEncoder()
+            print(loc_preds.shape)
+            print(cls_preds.shape)
             boxes, labels, scores = encoder.decode(loc_preds.data.cpu().squeeze(), cls_preds.data.cpu().squeeze(), (w,h))
             print("Image number : %s" %(number))
             print("label : ",labels)
             draw = ImageDraw.Draw(img)
+            font = ImageFont.truetype("./font/DELIA_regular.ttf", 20)
             count = 0
             for i,(box,label,score) in enumerate(zip(boxes,labels,scores)):
+                print(score)
                 count += 1
-                draw.rectangle(list(box), outline=color_map(int(label)),width = 2)
-                draw.rectangle(list([box[0],box[1]-10,box[0]+6*len(cate[int(label)])+4,box[1]]), outline=color_map(int(label)),width = 2,fill='white')
-                draw.text((box[0]+3, box[1]-11), cate[int(label)],fill = (0, 0, 0, 100),width = 2)
-                draw.text((box[0]+3, box[1]-10), " "*len(cate[int(label)])+" %.3f"%(score) ,fill = "red",width = 1)
+                draw.rectangle(list(box), outline=color_map(int(label)),width = 5)
+                draw.rectangle(list([box[0],box[1]-18,box[0]+12*len(my_cate[int(label)])+5,box[1]]), outline=color_map(int(label)),width = 2,fill='white')
+                draw.text((box[0]+3, box[1]-16), my_cate[int(label)] + ": %.3f"%(score.float()),font = font,fill = (0, 0, 0, 100),width = 5)
+
             print("Total number of BBox : ",count)
             img.save(os.path.join(pred_root,"pred_%s.jpg"%(number)))
             print("<"+"="*20+">")

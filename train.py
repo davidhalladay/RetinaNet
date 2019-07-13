@@ -40,14 +40,14 @@ root_path = "../COCO_dataset/images/%s"%(dataType)
 list_root_path = "./data/%s.txt"%(dataType)
 trainset = ListDataset(root=root_path,list_file=list_root_path, train=True, transform=transform, input_size=360)
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=45, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
 
 dataType = 'val2017'
 root_path = "../COCO_dataset/images/%s"%(dataType)
 list_root_path = "./data/%s.txt"%(dataType)
 testset = ListDataset(root=root_path,list_file=list_root_path, train=True, transform=transform, input_size=360)
 
-testloader = torch.utils.data.DataLoader(testset, batch_size=32, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
+testloader = torch.utils.data.DataLoader(testset, batch_size=25, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
 
 # Model
 net = RetinaNet()

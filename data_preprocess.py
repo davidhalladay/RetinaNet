@@ -49,11 +49,13 @@ def change_box_order(boxes, order):
         h = yM - ym
         return [xm+w/2.,ym+h/2.,w,h]
 
-def load_data(root, ann_root,dataType):
+def build_annos(root, ann_root,dataType):
     '''
     Args:
       root: (str) ditectory to images.
     '''
+    print("<"+"="*20+">")
+    print("[Building annotations]")
     fnames = os.listdir(root)
     fnames.sort()
     coco = COCO(ann_root)
@@ -81,6 +83,40 @@ def load_data(root, ann_root,dataType):
 
             file.write("%f %f %f %f %d "%(bbox[0],bbox[1],bbox[2],bbox[3],label))
         file.write("\n")
+    print("[Done]")
+
+    return True
+
+def build_mPA_GT(root, ann_root,dataType):
+    '''
+    Args:
+      root: (str) ditectory to images.
+    '''
+    print("<"+"="*20+">")
+    print("[Building GT for mPA]")
+    fnames = os.listdir(root)
+    fnames.sort()
+    coco = COCO(ann_root)
+    print("Total number of images : ",len(fnames))
+
+    for i, name in enumerate(fnames):
+        if (i+1)%10000 == 0:
+            print("\r%d/%d"%(i+1,len(fnames)),end="")
+        img_num = int(name.replace(".jpg",""))
+        annIds = coco.getAnnIds(imgIds=[img_num], iscrowd=None)
+        anns = coco.loadAnns(annIds)
+        if len(anns) == 0:
+            continue
+        file = open("./mPA/GT/%s.txt"%(name.replace(".jpg","")),"w")
+        for i, ann in enumerate(anns):
+            coco_label = int(ann['category_id'])
+            label = class_map(coco_label)
+            # note that the order of BBox in COCO dataset is xywh where x and y is the up-left point
+            # Not the center of BBox
+            xywh = [float(ann['bbox'][0]),float(ann['bbox'][1]),float(ann['bbox'][2]),float(ann['bbox'][3])]
+            bbox = change_box_order(xywh,'xywh2xyxy')
+            file.write("%s %.3f %.3f %.3f %.3f\n"%(my_cate[label],bbox[0],bbox[1],bbox[2],bbox[3]))
+    print("[Done]")
     return True
 
 def test(ku = False):
@@ -88,57 +124,72 @@ def test(ku = False):
 
     parser = argparse.ArgumentParser(description='PyTorch data Preprocessing')
     parser.add_argument('--dataType', default='train2017', type=str, help='dataType: train2017,val2017')
+    parser.add_argument('--mode', default='ba', type=str, help='mode: ba for build_annos, bg for build_mPA_GT, Both')
+    parser.add_argument('--test_image','-t', action='store_true', help='Testing mode ON and save the test image in ./')
     args = parser.parse_args()
 
     dataType = args.dataType
     root = "../COCO_dataset/images/%s"%(dataType)
     ann_root = "../COCO_dataset/annotations/instances_%s.json"%(dataType)
-    load_data(root, ann_root,dataType)
 
-    fnames = []
-    boxes = []
-    labels = []
+    if args.mode == 'ba' or args.mode == 'Both' :
+        if not os.path.exists("./data"):
+            os.makedirs("./data")
+        build_annos(root, ann_root,dataType)
+    if args.mode == 'bg' or args.mode == 'Both' :
+        if not os.path.exists("./mPA"):
+            os.makedirs("./mPA")
+        if not os.path.exists("./mPA/GT"):
+            os.makedirs("./mPA/GT")
+        build_mPA_GT(root, ann_root,dataType)
 
-    with open("./data/%s.txt"%(dataType)) as f:
-        lines = f.readlines()
-    if ku == True:
-        with open("./data/coco17_train.txt") as f:
+    if args.test_image :
+        fnames = []
+        boxes = []
+        labels = []
+
+        with open("./data/%s.txt"%(dataType)) as f:
+
             lines = f.readlines()
-    for line in lines:
-        splited = line.strip().split()
-        fnames.append(splited[0])
-        num_boxes = (len(splited) - 1) // 5
-        box = []
-        label = []
-        for i in range(num_boxes):
-            xmin = splited[1+5*i]
-            ymin = splited[2+5*i]
-            xmax = splited[3+5*i]
-            ymax = splited[4+5*i]
-            c = splited[5+5*i]
-            box.append([float(xmin),float(ymin),float(xmax),float(ymax)])
-            label.append(int(c))
-        boxes.append(torch.Tensor(box))
-        labels.append(torch.LongTensor(label))
-    print("Total number of BBox : ",len(boxes))
-    print("Total number of labels : ",len(labels))
+        if ku == True:
+            with open("./data/coco17_train.txt") as f:
+                lines = f.readlines()
+        for line in lines:
+            splited = line.strip().split()
+            fnames.append(splited[0])
+            num_boxes = (len(splited) - 1) // 5
+            box = []
+            label = []
+            for i in range(num_boxes):
+                xmin = splited[1+5*i]
+                ymin = splited[2+5*i]
+                xmax = splited[3+5*i]
+                ymax = splited[4+5*i]
+                c = splited[5+5*i]
+                box.append([float(xmin),float(ymin),float(xmax),float(ymax)])
+                label.append(int(c))
+            boxes.append(torch.Tensor(box))
+            labels.append(torch.LongTensor(label))
+        print("Total number of BBox : ",len(boxes))
+        print("Total number of labels : ",len(labels))
 
-    test_idx = 2200
-    test_fname = fnames[test_idx]
-    test_box = boxes[test_idx]
-    test_label = labels[test_idx]
+        test_idx = 2200
+        test_fname = fnames[test_idx]
+        test_box = boxes[test_idx]
+        test_label = labels[test_idx]
 
-    img = Image.open(os.path.join(root,test_fname))
+        img = Image.open(os.path.join(root,test_fname))
 
-    draw = ImageDraw.Draw(img)
+        draw = ImageDraw.Draw(img)
 
-    for i,(box,label) in enumerate(zip(test_box,test_label)):
-        draw.rectangle(list(box), outline=color_map(int(label)),width = 4)
-        draw.rectangle(list([box[0],box[1]-10,box[0]+6*len(my_cate[int(label)])+4,box[1]]), outline=color_map(int(label)),width = 4,fill='white')
-        draw.text((box[0]+3, box[1]-11), my_cate[int(label)],fill = (0, 0, 0, 100),width = 4)
-    plt.imshow(img)
-    plt.savefig("./test.jpg")
+        for i,(box,label) in enumerate(zip(test_box,test_label)):
+            draw.rectangle(list(box), outline=color_map(int(label)),width = 4)
+            draw.rectangle(list([box[0],box[1]-10,box[0]+6*len(my_cate[int(label)])+4,box[1]]), outline=color_map(int(label)),width = 4,fill='white')
+            draw.text((box[0]+3, box[1]-11), my_cate[int(label)],fill = (0, 0, 0, 100),width = 4)
+        plt.imshow(img)
+        plt.savefig("./test.jpg")
 
+    return True
 
 
 if __name__ == "__main__":

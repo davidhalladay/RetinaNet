@@ -4,8 +4,8 @@ This program will auto kill the image data which has no annotation.
 The list file is like:
 
     img.jpg xmin ymin xmax ymax label xmin ymin xmax ymax label ...
-
-Author : Wan-Cyuan Fan
+Author :    KuangLiu in Hangzhou, China
+            DavidFan in Irvine, CA, USA
 
 '''
 from __future__ import print_function
@@ -22,7 +22,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 import argparse
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import matplotlib.pyplot as plt
 from encoder import DataEncoder
 from transform import resize, random_flip, random_crop, center_crop
@@ -88,14 +88,13 @@ def build_annos(root, ann_root,dataType):
             # Not the center of BBox
             xywh = [float(ann['bbox'][0]),float(ann['bbox'][1]),float(ann['bbox'][2]),float(ann['bbox'][3])]
             bbox = change_box_order(xywh,'xywh2xyxy')
-
             file.write("%f %f %f %f %d "%(bbox[0],bbox[1],bbox[2],bbox[3],label))
         file.write("\n")
     print("[Done]")
 
     return True
 
-def build_mPA_GT(root, ann_root,dataType):
+def build_mPA_GT(root, ann_root,dataType,img_size = 360):
     '''
     Args:
       root: (str) ditectory to images.
@@ -106,14 +105,20 @@ def build_mPA_GT(root, ann_root,dataType):
     fnames.sort()
     coco = COCO(ann_root)
     print("Total number of images : ",len(fnames))
-
+    count = 0
     for i, name in enumerate(tqdm(fnames)):
         img_num = int(name.replace(".jpg",""))
+        image_path = os.path.join(root,name)
+        img = Image.open(image_path)
+
         annIds = coco.getAnnIds(imgIds=[img_num], iscrowd=None)
         anns = coco.loadAnns(annIds)
         if len(anns) == 0:
             continue
-        file = open("./mPA/GT/%s.txt"%(name.replace(".jpg","")),"w")
+        count += 1
+        file = open("./mPA/ground-truth/%s.txt"%(name.replace(".jpg","")),"w")
+
+        bbox_resize = [] ; label_resize = []
         for i, ann in enumerate(anns):
             coco_label = int(ann['category_id'])
             label = class_map(coco_label)
@@ -121,7 +126,15 @@ def build_mPA_GT(root, ann_root,dataType):
             # Not the center of BBox
             xywh = [float(ann['bbox'][0]),float(ann['bbox'][1]),float(ann['bbox'][2]),float(ann['bbox'][3])]
             bbox = change_box_order(xywh,'xywh2xyxy')
+            label_resize.append(label)
+            bbox_resize.append(bbox)
+
+        bbox_resize = torch.Tensor(bbox_resize)
+        img, boxes = resize(img, bbox_resize, (img_size,img_size))
+        for i , (bbox,label)in enumerate(zip(boxes,label_resize)):
             file.write("%s %.3f %.3f %.3f %.3f\n"%(my_cate[label],bbox[0],bbox[1],bbox[2],bbox[3]))
+
+    print("Total image convert : ",count)
     print("[Done]")
     return True
 
@@ -138,8 +151,12 @@ def test(ku = False):
     if args.build_mPA_GT:
         if not os.path.exists("./mPA"):
             os.makedirs("./mPA")
-        if not os.path.exists("./mPA/GT"):
-            os.makedirs("./mPA/GT")
+        if os.path.exists("./mPA/ground-truth"):
+            print("Remove GT file")
+            os.system("rm -rf ./mPA/ground-truth")
+            os.makedirs("./mPA/ground-truth")
+        if not os.path.exists("./mPA/ground-truth"):
+            os.makedirs("./mPA/ground-truth")
         build_mPA_GT(root, ann_root,dataType)
 
     if args.test_image :

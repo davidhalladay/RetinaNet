@@ -3,6 +3,8 @@
 The list file is like:
 
     img.jpg xmin ymin xmax ymax label xmin ymin xmax ymax label ...
+Author :    KuangLiu in Hangzhou, China
+            DavidFan in Irvine, CA, USA
 '''
 from __future__ import print_function
 
@@ -184,7 +186,7 @@ def test():
             print('Decoding..')
             encoder = DataEncoder()
 
-            boxes, labels, _= encoder.decode(loc_targets.data.cpu()[0], cls_preds.data.cpu().squeeze(), (w,h))
+            boxes, labels, _ = encoder.decode(loc_targets.data.cpu()[0], cls_preds.data.cpu().squeeze(), (w,h))
             print("Label : ",labels)
             draw = ImageDraw.Draw(img)
             # use a truetype font

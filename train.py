@@ -1,3 +1,6 @@
+'''RetinaNet train function for PyTorch.
+Author :    DavidFan in Irvine, CA, USA
+'''
 from __future__ import print_function
 
 import os
@@ -40,14 +43,14 @@ root_path = "../COCO_dataset/images/%s"%(dataType)
 list_root_path = "./data/%s.txt"%(dataType)
 trainset = ListDataset(root=root_path,list_file=list_root_path, train=True, transform=transform, input_size=360)
 
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=45, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=32, shuffle=True, num_workers=8, collate_fn=trainset.collate_fn)
 
 dataType = 'val2017'
 root_path = "../COCO_dataset/images/%s"%(dataType)
 list_root_path = "./data/%s.txt"%(dataType)
 testset = ListDataset(root=root_path,list_file=list_root_path, train=True, transform=transform, input_size=360)
 
-testloader = torch.utils.data.DataLoader(testset, batch_size=25, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
+testloader = torch.utils.data.DataLoader(testset, batch_size=32, shuffle=False, num_workers=8, collate_fn=testset.collate_fn)
 
 # Model
 net = RetinaNet()
@@ -102,8 +105,8 @@ def test(epoch):
         loc_preds, cls_preds = net(inputs)
         loss = criterion(loc_preds, loc_targets, cls_preds, cls_targets)
         test_loss += loss.item()
-        if batch_idx % 20 == 0:
-            print('test_loss: %.3f | avg_loss: %.3f' % (loss.item(), test_loss/(batch_idx+1)))
+
+        print('test_loss: %.3f | avg_loss: %.3f' % (loss.item(), test_loss/(batch_idx+1)))
 
     # Save checkpoint
     global best_loss

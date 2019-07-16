@@ -1,9 +1,13 @@
+'''Retina in PyTorch.
+Author :    KuangLiu in Hangzhou, China
+'''
 import torch
 import torch.nn as nn
 
 from fpn import FPN50
 from torch.autograd import Variable
-
+from torchviz import make_dot
+import matplotlib.pyplot as plt
 
 class RetinaNet(nn.Module):
     num_anchors = 9
@@ -22,6 +26,7 @@ class RetinaNet(nn.Module):
         for fm in fms:
             loc_pred = self.loc_head(fm)
             cls_pred = self.cls_head(fm)
+
             loc_pred = loc_pred.permute(0,2,3,1).contiguous().view(x.size(0),-1,4)                 # [N, 9*4,H,W] -> [N,H,W, 9*4] -> [N,H*W*9, 4]
             cls_pred = cls_pred.permute(0,2,3,1).contiguous().view(x.size(0),-1,self.num_classes)  # [N,9*20,H,W] -> [N,H,W,9*20] -> [N,H*W*9,20]
             loc_preds.append(loc_pred)
@@ -44,14 +49,15 @@ class RetinaNet(nn.Module):
 
 def test():
     net = RetinaNet()
+
     net.train()
     loc_preds, cls_preds = net(Variable(torch.randn(1,3,224,224)))
     print(loc_preds.size())
     print(cls_preds.size())
     loc_grads = Variable(torch.randn(loc_preds.size()))
     cls_grads = Variable(torch.randn(cls_preds.size()))
-    loc_preds.backward(loc_grads)
-    cls_preds.backward(cls_grads)
+    #loc_preds.backward(loc_grads)
+    #cls_preds.backward(cls_grads)
 
 if __name__ == "__main__":
     test()

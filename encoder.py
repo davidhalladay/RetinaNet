@@ -1,4 +1,7 @@
-'''Encode object boxes and labels.'''
+'''Encode object boxes and labels.
+Author :    KuangLiu in Hangzhou, China
+
+'''
 import math
 import torch
 
@@ -105,7 +108,7 @@ class DataEncoder:
           boxes: (tensor) decode box locations, sized [#obj,4].
           labels: (tensor) class labels for each box, sized [#obj,].
         '''
-        CLS_THRESH = 0.4
+        CLS_THRESH = 0.5
         NMS_THRESH = 0.5
 
         input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \

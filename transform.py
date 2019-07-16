@@ -1,4 +1,6 @@
-'''Perform transforms on both PIL image and object boxes.'''
+'''Perform transforms on both PIL image and object boxes.
+Author :    KuangLiu in Hangzhou, China
+'''
 import math
 import random
 

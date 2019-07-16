@@ -1,4 +1,6 @@
-'''RetinaFPN in PyTorch.'''
+'''RetinaFPN in PyTorch.
+Author :    KuangLiu in Hangzhou, China
+'''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

@@ -1,4 +1,6 @@
-'''Some helper functions for PyTorch.'''
+'''Some helper functions for PyTorch.
+Author :    KuangLiu in Hangzhou, China
+'''
 import os
 import sys
 import time
@@ -161,6 +163,7 @@ def box_nms(bboxes, scores, threshold=0.5, mode='union'):
     Reference:
       https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/nms/py_cpu_nms.py
     '''
+
     x1 = bboxes[:,0]
     y1 = bboxes[:,1]
     x2 = bboxes[:,2]

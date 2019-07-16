@@ -1,3 +1,6 @@
+'''RetinaNet loss in pytorch
+Author :    KuangLiu in Hangzhou, China
+'''
 from __future__ import print_function
 
 import torch
@@ -17,52 +20,6 @@ class FocalLoss(nn.Module):
         if isinstance(alpha,(float,int)): self.alpha = torch.Tensor([alpha,1-alpha])
         if isinstance(alpha,list): self.alpha = torch.Tensor(alpha)
         self.size_average = size_average
-
-    def my_focal_loss(self,input ,target):
-        if input.dim()>2:
-            input = input.view(input.size(0),input.size(1),-1)  # N,C,H,W => N,C,H*W
-            input = input.transpose(1,2)    # N,C,H*W => N,H*W,C
-            input = input.contiguous().view(-1,input.size(2))   # N,H*W,C => N*H*W,C
-        target = target.view(-1,1)
-
-        logpt = F.log_softmax(input,dim=1)
-        logpt = logpt.gather(1,target)
-        logpt = logpt.view(-1)
-        pt = Variable(logpt.data.exp())
-
-        if self.alpha is not None:
-            if self.alpha.type()!=input.data.type():
-                self.alpha = self.alpha.type_as(input.data)
-            at = self.alpha.gather(0,target.data.view(-1))
-            logpt = logpt * Variable(at)
-
-        loss = -1 * (1-pt)**self.gamma * logpt
-        if self.size_average: return loss.mean()
-        else: return loss.sum()
-
-    def focal_loss(self, x, y):
-        '''Focal loss.
-
-        Args:
-          x: (tensor) sized [N,D].
-          y: (tensor) sized [N,].
-
-        Return:
-          (tensor) focal loss.
-        '''
-        alpha = 0.25
-        gamma = 2
-
-        t = one_hot_embedding(y.data.cpu(), 1+self.num_classes)  # [N,21]
-        t = t[:,1:]  # exclude background
-        t = Variable(t,requires_grad=False).cuda()  # [N,20]
-
-        p = x.sigmoid()
-
-        pt = p*t + (1-p)*(1-t)         # pt = p if t > 0 else 1-p
-        w = alpha*(1-pt).pow(gamma)*t + (1-alpha)*(pt).pow(gamma)*(1-t)  # w = alpha if t > 0 else 1-alpha
-
-        return F.binary_cross_entropy_with_logits(p, t, w.detach(), reduction = 'mean')
 
     def focal_loss_ku(self, x, y):
         '''Focal loss.
